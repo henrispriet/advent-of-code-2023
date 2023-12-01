@@ -12,19 +12,19 @@ fn part_1(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            let mut digits = Vec::new();
-            for (i, c) in line.char_indices() {
+            let mut digits = line.char_indices().filter_map(|(i, c)| {
                 if let Some(d) = c.to_digit(10) {
-                    digits.push(d);
+                    Some(d)
                 } else if let Some(d) = DIGIT_WORDS
                     .iter()
                     .enumerate()
                     .find_map(|(d, w)| (&line.get(i..i + w.len())? == w).then_some(d as u32))
                 {
-                    digits.push(d);
+                    Some(d)
+                } else {
+                    None
                 }
-            }
-            let mut digits = digits.into_iter();
+            });
 
             let first = digits.next().unwrap_or_default();
             let last = digits.rev().next().unwrap_or(first);
