@@ -13,21 +13,15 @@ fn part_1(input: &str) -> String {
         .lines()
         .map(|line| {
             let mut digits = Vec::new();
-            'chars: for (i, c) in line.char_indices() {
+            for (i, c) in line.char_indices() {
                 if let Some(d) = c.to_digit(10) {
                     digits.push(d);
-                    continue;
-                }
-
-                for (d, &word) in DIGIT_WORDS.iter().enumerate() {
-                    let Some(slice) = line.get(i..i + word.len()) else {
-                        continue;
-                    };
-                    if slice == word {
-                        digits.push(d as u32);
-                        // no digit word is a prefix of another digit word
-                        continue 'chars;
-                    }
+                } else if let Some(d) = DIGIT_WORDS
+                    .iter()
+                    .enumerate()
+                    .find_map(|(d, w)| (&line.get(i..i + w.len())? == w).then_some(d as u32))
+                {
+                    digits.push(d);
                 }
             }
             let mut digits = digits.into_iter();
