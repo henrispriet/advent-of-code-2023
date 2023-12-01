@@ -1,29 +1,30 @@
-fn main() {
-    let input = include_str!("input.txt");
-    let output = part_1(input);
-    println!("{output}");
-}
+const RADIX: u32 = 10;
 
-fn part_1(input: &str) -> String {
+fn process(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            let mut digits = line.chars().filter_map(|digit| digit.to_digit(10));
+            let mut digits = line.chars().filter_map(|digit| digit.to_digit(RADIX));
             let first = digits.next().unwrap_or_default();
-            let last = digits.rev().next().unwrap_or(first);
-            10 * first + last
+            let last = digits.last().unwrap_or(first);
+            RADIX * first + last
         })
         .sum::<u32>()
         .to_string()
 }
 
+fn main() {
+    let input = include_str!("input.txt");
+    let output = process(input);
+    println!("{output}");
+}
+
 #[test]
-fn it_works() {
+fn example() {
     let input = "1abc2
 pqr3stu8vwx
 a1b2c3d4e5f
 treb7uchet";
     let expected = "142";
-    let output = part_1(input);
-    assert_eq!(expected, output);
+    assert_eq!(expected, process(input));
 }
