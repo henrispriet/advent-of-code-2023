@@ -17,8 +17,8 @@ fn part_1(input: &str) -> String {
                     DIGIT_WORDS
                         .iter()
                         .enumerate()
-                        .find_map(|(digit, word)| {
-                            let slice = &line.get(idx..idx + word.len())?;
+                        .find_map(|(digit, &word)| {
+                            let slice = line.get(idx..idx + word.len())?;
                             (slice == word).then_some(digit as u32)
                         })
                 })
