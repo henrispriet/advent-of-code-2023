@@ -12,12 +12,15 @@ fn part_1(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            let mut digits = line.char_indices().filter_map(|(i, c)| {
-                c.to_digit(10).or_else(|| {
+            let mut digits = line.char_indices().filter_map(|(idx, char)| {
+                char.to_digit(10).or_else(|| {
                     DIGIT_WORDS
                         .iter()
                         .enumerate()
-                        .find_map(|(d, w)| (&line.get(i..i + w.len())? == w).then_some(d as u32))
+                        .find_map(|(digit, word)| {
+                            let slice = &line.get(idx..idx + word.len())?;
+                            (slice == word).then_some(digit as u32)
+                        })
                 })
             });
 
