@@ -13,17 +13,12 @@ fn part_1(input: &str) -> String {
         .lines()
         .map(|line| {
             let mut digits = line.char_indices().filter_map(|(i, c)| {
-                if let Some(d) = c.to_digit(10) {
-                    Some(d)
-                } else if let Some(d) = DIGIT_WORDS
-                    .iter()
-                    .enumerate()
-                    .find_map(|(d, w)| (&line.get(i..i + w.len())? == w).then_some(d as u32))
-                {
-                    Some(d)
-                } else {
-                    None
-                }
+                c.to_digit(10).or_else(|| {
+                    DIGIT_WORDS
+                        .iter()
+                        .enumerate()
+                        .find_map(|(d, w)| (&line.get(i..i + w.len())? == w).then_some(d as u32))
+                })
             });
 
             let first = digits.next().unwrap_or_default();
