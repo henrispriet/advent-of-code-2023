@@ -28,3 +28,10 @@ treb7uchet";
     let expected = "142";
     assert_eq!(expected, process(input));
 }
+
+#[test]
+fn real_input() {
+    let input = include_str!("input.txt");
+    let expected = "55712";
+    assert_eq!(expected, process(input));
+}

@@ -41,3 +41,10 @@ zoneight234
     let expected = "281";
     assert_eq!(expected, process(input));
 }
+
+#[test]
+fn real_input() {
+    let input = include_str!("input.txt");
+    let expected = "55413";
+    assert_eq!(expected, process(input));
+}
