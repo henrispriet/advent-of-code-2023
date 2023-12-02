@@ -14,15 +14,13 @@ fn process(input: &str) -> String {
                 .split(": ")
                 .last()
                 .expect("split contains at least one element");
-            let mut rounds = game.split("; ");
-            rounds.all(|round| {
-                let mut grabs = round.split(", ");
-                grabs.all(|grab| {
+            game.split("; ")
+                .flat_map(|round| round.split(", "))
+                .all(|grab| {
                     let (num, color) = grab.split(' ').next_tuple().expect("grab has 2 elements");
                     let num = num.parse::<u32>().expect("num is number");
                     num <= cube_counts[color]
                 })
-            })
         })
         .enumerate()
         .filter_map(|(idx, valid)| valid.then_some(idx + 1))
