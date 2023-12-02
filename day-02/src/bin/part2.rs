@@ -48,3 +48,10 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green";
     let expected = "2286";
     assert_eq!(expected, process(input));
 }
+
+#[test]
+fn real_input() {
+    let input = include_str!("input.txt");
+    let expected = "62811";
+    assert_eq!(expected, process(input));
+}
