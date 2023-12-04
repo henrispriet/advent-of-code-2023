@@ -4,14 +4,13 @@ fn process(input: &str) -> String {
     input
         .lines()
         .map(|line| {
-            let game = line
-                .split(": ")
-                .last()
-                .expect("split contains at least one element");
+            let (_, game) = line
+                .split_once(": ")
+                .expect("format is 'Game x: '");
             game.split("; ")
                 .flat_map(|round| round.split(", "))
                 .map(|grab| {
-                    let (num, color) = grab.split(' ').next_tuple().expect("grab has 2 elements");
+                    let (num, color) = grab.split_once(' ').expect("grab has 2 elements");
                     let num = num.parse::<u32>().expect("num is number");
                     (color, num)
                 })
