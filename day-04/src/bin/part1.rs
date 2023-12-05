@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use nom::{
-    character::complete::{space0, space1, u32},
-    multi::separated_list0,
-    sequence::preceded,
+    character::complete::{space0, u32},
+    multi::fold_many1,
+    sequence::{preceded, terminated},
 };
 
 fn process(input: &str) -> String {
@@ -12,10 +14,10 @@ fn process(input: &str) -> String {
             let (winning_numbers_str, my_numbers_str) =
                 card.split_once(" | ").expect("format is 'winning | my'");
 
-            let winning_numbers = parse_numbers(winning_numbers_str);
-            let my_numbers = parse_numbers(my_numbers_str);
+            let winning_numbers = parse_to_set(winning_numbers_str);
+            let my_numbers = parse_to_set(my_numbers_str);
 
-            let n_winning_numbers = count_intersecting(winning_numbers, my_numbers) as u32;
+            let n_winning_numbers: u32 = winning_numbers.intersection(&my_numbers).count() as u32;
 
             if n_winning_numbers > 0 {
                 2u32.pow(n_winning_numbers - 1)
@@ -28,8 +30,14 @@ fn process(input: &str) -> String {
 }
 
 // with nom
-fn parse_numbers(numbers_str: &str) -> Vec<u32> {
-    let parser = separated_list0(space1::<&str, ()>, u32);
+fn parse_to_set(numbers_str: &str) -> HashSet<u32> {
+    let parse_one = terminated(u32, space0::<&str, ()>);
+
+    let parser = fold_many1(parse_one, HashSet::new, |mut set, num| {
+        set.insert(num);
+        set
+    });
+
     // line could start with a space because first num could be single digit
     let mut parser = preceded(space0, parser);
 
@@ -38,41 +46,6 @@ fn parse_numbers(numbers_str: &str) -> Vec<u32> {
     };
 
     numbers
-}
-
-fn count_intersecting(mut v1: Vec<u32>, mut v2: Vec<u32>) -> usize {
-    v1.sort_unstable();
-    v2.sort_unstable();
-
-    let mut v1 = v1.into_iter();
-    let mut v2 = v2.into_iter();
-    let mut count = 0;
-
-    'outer: loop {
-        let Some(mut n1) = v1.next() else {
-            break;
-        };
-        let Some(mut n2) = v2.next() else {
-            break;
-        };
-
-        while n1 != n2 {
-            if n1 < n2 {
-                n1 = match v1.next() {
-                    Some(n) => n,
-                    None => break 'outer,
-                };
-            } else {
-                n2 = match v2.next() {
-                    Some(n) => n,
-                    None => break 'outer,
-                }
-            }
-        }
-        count += 1;
-    }
-
-    count
 }
 
 fn main() {
