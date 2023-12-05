@@ -45,14 +45,14 @@ impl Map {
 
         // devide by layer
         for layer in self.layers.iter() {
-            let (before, overlap, after) = take(source_range.clone(), layer.source_range());
-            if let Some(before) = before {
+            let take = take(source_range.clone(), layer.source_range());
+            if let Some(before) = take.before {
                 ranges_per_layer.push(before);
             }
-            if let Some(overlap) = overlap {
+            if let Some(overlap) = take.overlap {
                 ranges_per_layer.push(overlap);
             }
-            if let Some(after) = after {
+            if let Some(after) = take.after {
                 source_range = after;
             } else {
                 break;
@@ -72,48 +72,67 @@ impl Map {
     }
 }
 
+struct TakeRange {
+    before: Option<Range<u64>>,
+    overlap: Option<Range<u64>>,
+    after: Option<Range<u64>>,
+}
+
 // return (before, overlap, after)
 // praying to god for no off by one errors
-fn take(
-    from: Range<u64>,
-    range: Range<u64>,
-) -> (Option<Range<u64>>, Option<Range<u64>>, Option<Range<u64>>) {
+fn take(from: Range<u64>, range: Range<u64>) -> TakeRange {
     if range.end <= from.start {
         // from:     |-|
         // range: |-|
-        (None, None, Some(from))
+        TakeRange {
+            before: None,
+            overlap: None,
+            after: Some(from),
+        }
     } else if range.start <= from.start {
         if range.end <= from.end {
             // from:   |-|
             // range: |-|
-            (None, Some(from.start..range.end), Some(range.end..from.end))
+            TakeRange {
+                before: None,
+                overlap: Some(from.start..range.end),
+                after: Some(range.end..from.end),
+            }
         } else {
             // from:   |-|
             // range: |---|
-            (None, Some(from), None)
+            TakeRange {
+                before: None,
+                overlap: Some(from),
+                after: None,
+            }
         }
     } else if range.start <= from.end {
         if range.end <= from.end {
             // from:  |---|
             // range:  |-|
-            (
-                Some(from.start..range.start),
-                Some(range.clone()),
-                Some(range.end..from.end),
-            )
+            TakeRange {
+                before: Some(from.start..range.start),
+                overlap: Some(range.clone()),
+                after: Some(range.end..from.end),
+            }
         } else {
             // from:  |-|
             // range:  |-|
-            (
-                Some(from.start..range.start),
-                Some(range.start..from.end),
-                None,
-            )
+            TakeRange {
+                before: Some(from.start..range.start),
+                overlap: Some(range.start..from.end),
+                after: None,
+            }
         }
     } else {
         // from:  |-|
         // range:    |-|
-        (Some(from), None, None)
+        TakeRange {
+            before: Some(from),
+            overlap: None,
+            after: None,
+        }
     }
 }
 
