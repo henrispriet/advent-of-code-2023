@@ -1,9 +1,12 @@
+use std::ops::Range;
+
 use nom::{
     bytes::complete::tag,
-    character::complete::{newline, space0, space1, u32, alpha1, none_of},
+    character::complete::{alpha1, newline, space1, u64},
+    combinator::opt,
     multi::separated_list1,
-    sequence::{pair, preceded, separated_pair, terminated, tuple, delimited},
-    IResult, combinator::not,
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    IResult,
 };
 
 #[derive(Debug)]
@@ -13,16 +16,36 @@ struct Map {
 
 #[derive(Debug)]
 struct MapLayer {
-    dest_start: u32,
-    source_start: u32,
-    range_len: u32,
+    dest_start: u64,
+    source_start: u64,
+    range_len: u64,
 }
 
-type Seed = u32;
+impl MapLayer {
+    fn source_range(&self) -> Range<u64> {
+        self.source_start..self.source_start + self.range_len
+    }
+}
+
+impl Map {
+    fn map(&self, source: u64) -> u64 {
+        self.layers
+            .iter()
+            .find_map(|layer| {
+                layer.source_range().contains(&source).then(|| {
+                    let offset = source - layer.source_start;
+                    layer.dest_start + offset
+                })
+            })
+            .unwrap_or(source)
+    }
+}
+
+type Seed = u64;
 
 fn parse_map_layer(input: &str) -> IResult<&str, MapLayer> {
     let (remainder, (dest_start, _, source_start, _, range_len)) =
-        tuple((u32, space1, u32, space1, u32))(input)?;
+        tuple((u64, space1, u64, space1, u64))(input)?;
     Ok((
         remainder,
         MapLayer {
@@ -40,26 +63,38 @@ fn parse_map(input: &str) -> IResult<&str, Map> {
 }
 
 fn parse(input: &str) -> (Vec<Seed>, Vec<Map>) {
-    let parse_seeds = delimited(tag("seeds: "), separated_list1(space1, u32), newline);
-    let parse_maps = separated_list1(pair(newline, newline), parse_map);
+    let parse_seeds = delimited(tag("seeds: "), separated_list1(space1, u64), newline);
+    let parse_maps = terminated(separated_list1(pair(newline, newline), parse_map), opt(newline));
     let mut parser = separated_pair(parse_seeds, newline, parse_maps);
 
     match parser(input) {
         Ok(("", output)) => output,
-        Ok(output) => panic!("parsing INCOMPLETE!
-{output:#?}"),
-        Err(error) => panic!("parser FAILED!
-{error:#?}"),
+        Ok(output) => panic!(
+            "parsing INCOMPLETE!
+{output:#?}"
+        ),
+        Err(error) => panic!(
+            "parser FAILED!
+{error:#?}"
+        ),
     }
 }
 
 fn process(input: &str) -> String {
     let (seeds, maps) = parse(input);
 
-    dbg!(seeds);
-    dbg!(maps);
-
-    todo!()
+    seeds
+        .into_iter()
+        .map(|seed| {
+            let mut source = seed;
+            for map in maps.iter() {
+                source = map.map(source);
+            }
+            source
+        })
+        .min()
+        .expect("at least one seed")
+        .to_string()
 }
 
 fn main() {
@@ -107,10 +142,9 @@ humidity-to-location map:
     assert_eq!(expected, process(input));
 }
 
-#[ignore = "not done"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "322500873";
     assert_eq!(expected, process(input));
 }
