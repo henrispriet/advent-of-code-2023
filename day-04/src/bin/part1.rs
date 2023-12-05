@@ -1,19 +1,42 @@
-// DARN YOU SPACES!
-// i hate this function so much
-fn despacify(with_spaces: &str) -> String {
-    // TODO: SO MANY ALLOCATIONS ;-;
-    let despacified = (with_spaces.to_owned() + " ")
-        .replace(" 0 ", "00 ")
-        .replace(" 1 ", "01 ")
-        .replace(" 2 ", "02 ")
-        .replace(" 3 ", "03 ")
-        .replace(" 4 ", "04 ")
-        .replace(" 5 ", "05 ")
-        .replace(" 6 ", "06 ")
-        .replace(" 7 ", "07 ")
-        .replace(" 8 ", "08 ")
-        .replace(" 9 ", "09 ");
-    despacified[..despacified.len() - 1].to_owned()
+use nom::{
+    character::complete::{space1, u32, space0},
+    multi::separated_list0, sequence::preceded,
+};
+
+fn process(input: &str) -> String {
+    input
+        .lines()
+        .map(|line| {
+            let (_, card) = line.split_once(": ").expect("format is 'Card x: '");
+            let (winning_numbers_str, my_numbers_str) =
+                card.split_once(" | ").expect("format is 'winning | my'");
+
+            let winning_numbers = parse_numbers(winning_numbers_str);
+            let my_numbers = parse_numbers(my_numbers_str);
+
+            let n_winning_numbers = count_intersecting(winning_numbers, my_numbers) as u32;
+
+            if n_winning_numbers > 0 {
+                2u32.pow(n_winning_numbers - 1)
+            } else {
+                0
+            }
+        })
+        .sum::<u32>()
+        .to_string()
+}
+
+// with nom
+fn parse_numbers(numbers_str: &str) -> Vec<u32> {
+    let parser = separated_list0(space1::<&str, ()>, u32);
+    // line could start with a space because first num could be single digit
+    let mut parser = preceded(space0, parser);
+
+    let Ok(("", numbers)) = dbg!(parser(numbers_str)) else {
+        panic!("parser is wrong");
+    };
+
+    numbers
 }
 
 fn count_intersecting(mut v1: Vec<u32>, mut v2: Vec<u32>) -> usize {
@@ -49,35 +72,6 @@ fn count_intersecting(mut v1: Vec<u32>, mut v2: Vec<u32>) -> usize {
     }
 
     count
-}
-
-fn process(input: &str) -> String {
-    input
-        .lines()
-        .map(|line| {
-            let (_, card) = line.split_once(": ").expect("format is 'Card x: '");
-            let (winning_numbers_str, my_numbers_str) =
-                card.split_once(" | ").expect("format is 'winning | my'");
-
-            let winning_numbers = despacify(winning_numbers_str)
-                .split(' ')
-                .map(|n| n.parse().expect("is number"))
-                .collect();
-            let my_numbers = despacify(my_numbers_str)
-                .split(' ')
-                .map(|n| n.parse().expect("is number"))
-                .collect();
-
-            let n_winning_numbers = count_intersecting(winning_numbers, my_numbers) as u32;
-
-            if n_winning_numbers > 0 {
-                2u32.pow(n_winning_numbers - 1)
-            } else {
-                0
-            }
-        })
-        .sum::<u32>()
-        .to_string()
 }
 
 fn main() {
