@@ -1,6 +1,7 @@
 use nom::{
-    character::complete::{space1, u32, space0},
-    multi::separated_list0, sequence::preceded,
+    character::complete::{space0, space1, u32},
+    multi::separated_list0,
+    sequence::preceded,
 };
 
 fn process(input: &str) -> String {
@@ -32,7 +33,7 @@ fn parse_numbers(numbers_str: &str) -> Vec<u32> {
     // line could start with a space because first num could be single digit
     let mut parser = preceded(space0, parser);
 
-    let Ok(("", numbers)) = dbg!(parser(numbers_str)) else {
+    let Ok(("", numbers)) = parser(numbers_str) else {
         panic!("parser is wrong");
     };
 
