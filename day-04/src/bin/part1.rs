@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use nom::{
-    character::complete::{space0, u32},
+    character::complete::{space0, space1, u32},
     multi::fold_many1,
     sequence::{preceded, terminated},
 };
@@ -31,15 +31,12 @@ fn process(input: &str) -> String {
 
 // with nom
 fn parse_to_set(numbers_str: &str) -> HashSet<u32> {
-    let parse_one = terminated(u32, space0::<&str, ()>);
+    let parse_one = preceded(space0::<&str, ()>, u32);
 
-    let parser = fold_many1(parse_one, HashSet::new, |mut set, num| {
+    let mut parser = fold_many1(parse_one, HashSet::new, |mut set, num| {
         set.insert(num);
         set
     });
-
-    // line could start with a space because first num could be single digit
-    let mut parser = preceded(space0, parser);
 
     let Ok(("", numbers)) = parser(numbers_str) else {
         panic!("parser is wrong");
