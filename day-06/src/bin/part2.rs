@@ -14,10 +14,8 @@ fn process(input: BoatRaces) -> String {
 
             // x1 = (-t + sqrt(D)) / -2
             let x1 = (-(time as f32) + discriminant.sqrt()) / -2.;
-            dbg!(x1);
             // x2 = (-t - sqrt(D)) / -2
             let x2 = (-(time as f32) - discriminant.sqrt()) / -2.;
-            dbg!(x2);
             // with x1 <= x2
             debug_assert!(x1 <= x2);
 
@@ -25,11 +23,9 @@ fn process(input: BoatRaces) -> String {
             // than distance_to_beat
             let lower_bound = (x1 + 1.).floor() as u64; // ~x1.ceil()
             let upper_bound = (x2 - 1.).ceil() as u64; // ~x2.floor()
-                                                       // num_ways_to_win =
+
+            // num_ways_to_win =
             (lower_bound..=upper_bound).count()
-        })
-        .inspect(|a| {
-            dbg!(a);
         })
         .product::<usize>()
         .to_string()
@@ -54,13 +50,16 @@ impl IntoIterator for BoatRaces {
 fn parse(input: &str) -> BoatRaces {
     let no_spaces = input.replace(' ', "");
     let mut lines = no_spaces.lines();
-    let mut get_the_fricking_number = || lines.next()
-        .unwrap()
-        .split_once(':')
-        .unwrap()
-        .1
-        .parse::<u64>()
-        .unwrap();
+    let mut get_the_fricking_number = || {
+        lines
+            .next()
+            .unwrap()
+            .split_once(':')
+            .unwrap()
+            .1
+            .parse::<u64>()
+            .unwrap()
+    };
 
     let time = get_the_fricking_number();
     let distance = get_the_fricking_number();
@@ -92,23 +91,21 @@ fn parse_real_input() {
     parse(real_input);
 }
 
-#[ignore = "not done"]
 #[test]
 fn example() {
     let input = "Time:      7  15   30
 Distance:  9  40  200";
-    let expected = "288";
+    let expected = "71503";
 
     let parsed = parse(input);
     let output = process(parsed);
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "503424";
+    let expected = "32607562";
 
     let parsed = parse(input);
     let output = process(parsed);

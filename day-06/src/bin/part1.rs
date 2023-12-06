@@ -24,10 +24,8 @@ fn process(input: BoatRaces) -> String {
 
             // x1 = (-t + sqrt(D)) / -2
             let x1 = (-(time as f32) + discriminant.sqrt()) / -2.;
-            dbg!(x1);
             // x2 = (-t - sqrt(D)) / -2
             let x2 = (-(time as f32) - discriminant.sqrt()) / -2.;
-            dbg!(x2);
             // with x1 <= x2
             debug_assert!(x1 <= x2);
 
@@ -35,11 +33,9 @@ fn process(input: BoatRaces) -> String {
             // than distance_to_beat
             let lower_bound = (x1 + 1.).floor() as u32; // ~x1.ceil()
             let upper_bound = (x2 - 1.).ceil() as u32; // ~x2.floor()
+
             // num_ways_to_win =
             (lower_bound..=upper_bound).count()
-        })
-        .inspect(|a| {
-            dbg!(a);
         })
         .product::<usize>()
         .to_string()
