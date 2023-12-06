@@ -86,11 +86,7 @@ fn process(input: &str) -> String {
     seeds
         .into_iter()
         .map(|seed| {
-            let mut source = seed;
-            for map in maps.iter() {
-                source = map.map(source);
-            }
-            source
+            maps.iter().fold(seed, |source, map| map.map(source))
         })
         .min()
         .expect("at least one seed")

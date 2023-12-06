@@ -78,8 +78,6 @@ struct TakeRange {
     after: Option<Range<u64>>,
 }
 
-// return (before, overlap, after)
-// praying to god for no off by one errors
 fn take(from: Range<u64>, range: Range<u64>) -> TakeRange {
     if range.end <= from.start {
         // from:     |-|
@@ -191,17 +189,15 @@ fn parse(input: &str) -> (Vec<Range<u64>>, Vec<Map>) {
 
 fn process(input: &str) -> String {
     let (seeds, maps) = parse(input);
-    let mut source = seeds;
 
-    for map in maps {
-        // TODO: dont collect every time
-        source = source
-            .into_iter()
-            .flat_map(|range| map.map_range(range))
-            .collect();
-    }
-
-    source
+    maps.into_iter()
+        .fold(seeds, |source_ranges, map| {
+            source_ranges
+                .into_iter()
+                .flat_map(|range| map.map_range(range))
+                // TODO: still the collect here ;-;
+                .collect()
+        })
         .into_iter()
         .map(|range| range.start) // min will be start of a range
         .min()
