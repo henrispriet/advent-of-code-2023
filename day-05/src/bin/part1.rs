@@ -5,8 +5,8 @@ use nom::{
     character::complete::{alpha1, newline, space1, u64},
     combinator::opt,
     multi::separated_list1,
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
-    IResult,
+    sequence::{delimited, separated_pair, terminated, tuple},
+    Parser,
 };
 
 #[derive(Debug)]
@@ -43,29 +43,32 @@ impl Map {
 
 type Seed = u64;
 
-fn parse_map_layer(input: &str) -> IResult<&str, MapLayer> {
-    let (remainder, (dest_start, _, source_start, _, range_len)) =
-        tuple((u64, space1, u64, space1, u64))(input)?;
-    Ok((
-        remainder,
-        MapLayer {
+fn parse(input: &str) -> (Vec<Seed>, Vec<Map>) {
+    let seeds = delimited(tag("seeds: "), separated_list1(space1, u64), newline);
+    let map_layer = tuple((u64, space1, u64, space1, u64)).map(
+        |(dest_start, _, source_start, _, range_len)| MapLayer {
             dest_start,
             source_start,
             range_len,
         },
-    ))
-}
-
-fn parse_map(input: &str) -> IResult<&str, Map> {
-    let header = terminated(separated_list1(tag("-"), alpha1), tag(" map:\n"));
-    let (remainder, layers) = preceded(header, separated_list1(newline, parse_map_layer))(input)?;
-    Ok((remainder, Map { layers }))
-}
-
-fn parse(input: &str) -> (Vec<Seed>, Vec<Map>) {
-    let parse_seeds = delimited(tag("seeds: "), separated_list1(space1, u64), newline);
-    let parse_maps = terminated(separated_list1(pair(newline, newline), parse_map), opt(newline));
-    let mut parser = separated_pair(parse_seeds, newline, parse_maps);
+    );
+    let map_header = terminated(separated_list1(tag("-"), alpha1), tag(" map:\n"));
+    let maps = separated_list1(
+        newline,
+        delimited(
+            map_header,
+            separated_list1(newline, map_layer).map(|layers| Map { layers }),
+            // NOTE: should tecnically be something like newline.or(eof)
+            // but this gives a lot of weird errors
+            opt(newline),
+        ),
+    );
+    let mut parser =
+        // NOTE: should probably have a more descriptive error than ()
+        // but this gives a lot of weird errors
+        separated_pair::<_, _, _, _, (), _, _, _>(
+            seeds, newline, maps,
+        );
 
     match parser(input) {
         Ok(("", output)) => output,
@@ -85,9 +88,7 @@ fn process(input: &str) -> String {
 
     seeds
         .into_iter()
-        .map(|seed| {
-            maps.iter().fold(seed, |source, map| map.map(source))
-        })
+        .map(|seed| maps.iter().fold(seed, |source, map| map.map(source)))
         .min()
         .expect("at least one seed")
         .to_string()

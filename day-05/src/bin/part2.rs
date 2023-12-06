@@ -3,18 +3,18 @@ use nom::{
     character::complete::{alpha1, newline, space1, u64},
     combinator::opt,
     multi::separated_list1,
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
-    IResult,
+    sequence::{delimited, separated_pair, terminated, tuple},
+    Parser,
 };
 use std::ops::Range;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct Map {
     /// sorted by source_start
     layers: Vec<MapLayer>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct MapLayer {
     dest_start: u64,
     source_start: u64,
@@ -134,45 +134,42 @@ fn take(from: Range<u64>, range: Range<u64>) -> TakeRange {
     }
 }
 
-fn parse_map_layer(input: &str) -> IResult<&str, MapLayer> {
-    let (remainder, (dest_start, _, source_start, _, range_len)) =
-        tuple((u64, space1, u64, space1, u64))(input)?;
-    Ok((
-        remainder,
-        MapLayer {
+fn parse(input: &str) -> (Vec<Range<u64>>, Vec<Map>) {
+    let seed_ranges = delimited(
+        tag("seeds: "),
+        separated_list1(
+            space1,
+            separated_pair(u64, space1, u64).map(|(start, len)| start..start + len),
+        ),
+        newline,
+    );
+    let map_layer = tuple((u64, space1, u64, space1, u64)).map(
+        |(dest_start, _, source_start, _, range_len)| MapLayer {
             dest_start,
             source_start,
             range_len,
         },
-    ))
-}
-
-fn parse_map(input: &str) -> IResult<&str, Map> {
-    let header = terminated(separated_list1(tag("-"), alpha1), tag(" map:\n"));
-    let (remainder, mut layers) =
-        preceded(header, separated_list1(newline, parse_map_layer))(input)?;
-
-    layers.sort_unstable_by_key(|layer| layer.source_start);
-    Ok((remainder, Map { layers }))
-}
-
-fn parse_seed_range(input: &str) -> IResult<&str, Range<u64>> {
-    let (remainder, (start, len)) =
-        separated_pair(u64::<&str, nom::error::Error<&str>>, space1, u64)(input)?;
-    Ok((remainder, start..start + len))
-}
-
-fn parse(input: &str) -> (Vec<Range<u64>>, Vec<Map>) {
-    let parse_seeds = delimited(
-        tag("seeds: "),
-        separated_list1(space1, parse_seed_range),
+    );
+    let map_header = terminated(separated_list1(tag("-"), alpha1), tag(" map:\n"));
+    let maps = separated_list1(
         newline,
+        delimited(
+            map_header,
+            separated_list1(newline, map_layer).map(|mut layers| {
+                layers.sort_unstable_by_key(|layer| layer.source_start);
+                Map { layers }
+            }),
+            // NOTE: should tecnically be something like newline.or(eof)
+            // but this gives a lot of weird errors
+            opt(newline),
+        ),
     );
-    let parse_maps = terminated(
-        separated_list1(pair(newline, newline), parse_map),
-        opt(newline),
-    );
-    let mut parser = separated_pair(parse_seeds, newline, parse_maps);
+    let mut parser =
+        // NOTE: should probably have a more descriptive error than ()
+        // but this gives a lot of weird errors
+        separated_pair::<_, _, _, _, (), _, _, _>(
+            seed_ranges, newline, maps,
+        );
 
     match parser(input) {
         Ok(("", output)) => output,
