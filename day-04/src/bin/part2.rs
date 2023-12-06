@@ -7,7 +7,7 @@ use nom::{
 };
 
 fn process(input: &str) -> String {
-    input
+    let num_matching = input
         .lines()
         .map(|line| {
             let (_, card) = line.split_once(": ").expect("format is 'Card x: '");
@@ -18,13 +18,18 @@ fn process(input: &str) -> String {
             let my_numbers = parse_to_set(my_numbers_str);
 
             let n_winning_numbers: u32 = winning_numbers.intersection(&my_numbers).count() as u32;
+            n_winning_numbers
+        }).collect::<Vec<_>>();
 
-            if n_winning_numbers > 0 {
-                2u32.pow(n_winning_numbers - 1)
-            } else {
-                0
-            }
-        })
+    let mut multipliers = vec![1u32; num_matching.len()];
+    for i in 0..multipliers.len() {
+        let this_multiplier = multipliers[i];
+        for m in &mut multipliers[i + 1..i + 1 + num_matching[i] as usize] {
+            *m += this_multiplier;
+        }
+    }
+
+    multipliers.into_iter()
         .sum::<u32>()
         .to_string()
 }
@@ -59,13 +64,13 @@ Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
 Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
 Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
 Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11";
-    let expected = "13";
+    let expected = "30";
     assert_eq!(expected, process(input));
 }
 
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "21821";
+    let expected = "5539496";
     assert_eq!(expected, process(input));
 }
