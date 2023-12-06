@@ -1,12 +1,11 @@
 use nom::{
-    bytes::complete::tag,
     character::complete::{line_ending, space0, space1, u32},
     combinator::opt,
     multi::separated_list1,
     sequence::separated_pair,
     Parser,
 };
-use nom_supreme::ParserExt;
+use nom_supreme::{error::ErrorTree, tag::complete::tag, ParserExt};
 
 fn process(input: BoatRaces) -> String {
     input
@@ -61,7 +60,7 @@ fn parse(input: &str) -> BoatRaces {
     let list = |name: &'static str| {
         tag(name)
             .precedes(space0)
-            .precedes(separated_list1(space1::<&str, ()>, u32))
+            .precedes(separated_list1(space1::<&str, ErrorTree<&str>>, u32))
     };
     let mut parser = separated_pair(list("Time:"), line_ending, list("Distance:"))
         .terminated(opt(line_ending))

@@ -1,72 +1,71 @@
-fn process(input: BoatRaces) -> String {
-    input
-        .into_iter()
-        .map(|(time, distance_to_beat)| {
-            // num ways to win
-            // speed = time_held
-            // dist = speed * (time - time_held)
-            //
-            // so with x = time_held, t = time, d = dist:
-            // -x^2 + t*x - d = 0
-            // solved, this means:
-            // D = t^2 - 4*d
-            let discriminant = (time * time - 4 * distance_to_beat) as f32;
+use nom::{
+    character::complete::{alpha1, digit1, line_ending, space0, space1, u64},
+    combinator::opt,
+    multi::separated_list1,
+    sequence::separated_pair,
+    Parser,
+};
+use nom_supreme::{error::ErrorTree, tag::complete::tag, ParserExt};
 
-            // x1 = (-t + sqrt(D)) / -2
-            let x1 = (-(time as f32) + discriminant.sqrt()) / -2.;
-            // x2 = (-t - sqrt(D)) / -2
-            let x2 = (-(time as f32) - discriminant.sqrt()) / -2.;
-            // with x1 <= x2
-            debug_assert!(x1 <= x2);
+fn process(input: BoatRace) -> String {
+    // num ways to win
+    // speed = time_held
+    // dist = speed * (time - time_held)
+    //
+    // so with x = time_held, t = time, d = dist:
+    // -x^2 + t*x - d = 0
+    // solved, this means:
+    // D = t^2 - 4*d
+    let discriminant = (input.time * input.time - 4 * input.distance) as f32;
 
-            // because our distance has to be _strictly_ greater (>)
-            // than distance_to_beat
-            let lower_bound = (x1 + 1.).floor() as u64; // ~x1.ceil()
-            let upper_bound = (x2 - 1.).ceil() as u64; // ~x2.floor()
+    // x1 = (-t + sqrt(D)) / -2
+    let x1 = (-(input.time as f32) + discriminant.sqrt()) / -2.;
+    // x2 = (-t - sqrt(D)) / -2
+    let x2 = (-(input.time as f32) - discriminant.sqrt()) / -2.;
+    // with x1 <= x2
+    debug_assert!(x1 <= x2);
 
-            // num_ways_to_win =
-            (lower_bound..=upper_bound).count()
-        })
-        .product::<usize>()
-        .to_string()
+    // because our distance has to be _strictly_ greater (>)
+    // than distance_to_beat
+    let lower_bound = (x1 + 1.).floor() as u64; // ~x1.ceil()
+    let upper_bound = (x2 - 1.).ceil() as u64; // ~x2.floor()
+
+    // num_ways_to_win =
+    (lower_bound..=upper_bound).count().to_string()
 }
 
 #[derive(Debug)]
-struct BoatRaces {
-    times: Vec<u64>,
-    distances: Vec<u64>,
+struct BoatRace {
+    time: u64,
+    distance: u64,
 }
 
-impl IntoIterator for BoatRaces {
-    type Item = (u64, u64);
-
-    type IntoIter = std::iter::Zip<std::vec::IntoIter<u64>, std::vec::IntoIter<u64>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.times.into_iter().zip(self.distances)
-    }
-}
-
-fn parse(input: &str) -> BoatRaces {
-    let no_spaces = input.replace(' ', "");
-    let mut lines = no_spaces.lines();
-    let mut get_the_fricking_number = || {
-        lines
-            .next()
-            .unwrap()
-            .split_once(':')
-            .unwrap()
-            .1
-            .parse::<u64>()
-            .unwrap()
+fn parse(input: &str) -> BoatRace {
+    let number = |name: &'static str| {
+        tag(name)
+            .precedes(space0::<&str, ErrorTree<&str>>)
+            .precedes(separated_list1(space1, digit1))
+            .map(|list| {
+                list.join("")
+                    .parse()
+                    // dont like this
+                    .expect("time and distance are valid numbers")
+            })
     };
+    let mut parser = separated_pair(number("Time:"), line_ending, number("Distance:"))
+        .terminated(opt(line_ending))
+        .map(|(time, distance)| BoatRace { time, distance });
 
-    let time = get_the_fricking_number();
-    let distance = get_the_fricking_number();
-
-    BoatRaces {
-        times: vec![time],
-        distances: vec![distance],
+    match parser.parse(input) {
+        Ok(("", output)) => output,
+        Ok(output) => panic!(
+            "parsing INCOMPLETE!
+{output:#?}"
+        ),
+        Err(error) => panic!(
+            "parser FAILED!
+{error:#?}"
+        ),
     }
 }
 
