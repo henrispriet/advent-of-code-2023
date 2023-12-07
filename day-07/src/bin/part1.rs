@@ -1,16 +1,52 @@
-use std::str::FromStr;
-
-use anyhow::Context;
 use nom::{
-    character::complete::{line_ending, space1, u32, digit1, alphanumeric1},
-    combinator::opt,
+    character::complete::{alphanumeric1, line_ending, space1, u32},
     multi::fold_many1,
-    sequence::{separated_pair, terminated, tuple}, IResult, bytes::complete::take_until,
+    sequence::{separated_pair, terminated},
 };
-use nom_supreme::{ParserExt, error::ErrorTree};
+use nom_supreme::{error::ErrorTree, ParserExt};
+use std::{collections::HashMap, str::FromStr};
 
-fn process(_input: ParsedData) -> String {
-    todo!()
+fn process(input: ParsedData) -> String {
+    let Game { hands, bids } = input;
+    let hands_types = hands.iter().map(get_hand_type);
+
+    let mut ranked: Vec<_> = hands_types.into_iter().zip(&hands).zip(bids).collect();
+    ranked.sort_unstable_by(|((htype1, hand1), _), ((htype2, hand2), _)| {
+        htype1.cmp(htype2).then(hand1.cmp(hand2))
+    });
+    dbg!(&ranked);
+    ranked
+        .into_iter()
+        .map(|(_, bid)| bid)
+        .enumerate()
+        .fold(0, |sum, (rank, bid)| sum + (rank + 1) as u32 * bid)
+        .to_string()
+}
+
+fn get_hand_type(hand: &Hand) -> HandType {
+    let mut counters = hand
+        .0
+        .iter()
+        .map(|card| card.value)
+        .fold(HashMap::new(), |mut map, card| {
+            let counter = map.get(&card);
+            map.insert(card, counter.unwrap_or(&0) + 1);
+            map
+        })
+        .into_values()
+        .collect::<Vec<_>>();
+    counters.sort_unstable();
+
+    match counters[..] {
+        [5] => HandType::FiveOfAKind,
+        [1, 4] => HandType::FourOfAKind,
+        [2, 3] => HandType::FullHouse,
+        [1, 1, 3] => HandType::ThreeOfAKind,
+        [1, 2, 2] => HandType::TwoPair,
+        [1, 1, 1, 2] => HandType::OnePair,
+        [1, 1, 1, 1, 1] => HandType::HighCard,
+        _ => unreachable!(),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,10 +56,11 @@ enum HandType {
     TwoPair,
     ThreeOfAKind,
     FullHouse,
+    FourOfAKind,
     FiveOfAKind,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Card {
     value: u8,
 }
@@ -46,7 +83,7 @@ impl TryFrom<char> for Card {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Hand([Card; 5]);
 
 impl FromStr for Hand {
@@ -72,7 +109,11 @@ struct Game {
 type ParsedData = Game;
 
 fn parse(input: &str) -> ParsedData {
-    let line = separated_pair(alphanumeric1::<_, ErrorTree<&str>>.map_res(Hand::from_str), space1, u32);
+    let line = separated_pair(
+        alphanumeric1::<_, ErrorTree<&str>>.map_res(Hand::from_str),
+        space1,
+        u32,
+    );
     let mut parser = fold_many1(
         terminated(line, line_ending.opt()),
         Game::default,
@@ -120,7 +161,6 @@ fn parse_real_input() {
     parse(real_input);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example() {
     let input = "32T3K 765
@@ -135,11 +175,10 @@ QQQJA 483";
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with process"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "251927063";
 
     let parsed = parse(input);
     let output = process(parsed);
