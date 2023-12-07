@@ -1,13 +1,15 @@
 use std::str::FromStr;
 
+use anyhow::Context;
 use nom::{
-    character::complete::{alphanumeric1, line_ending, space1, u32},
-    multi::{fold_many1, separated_list1},
-    sequence::{separated_pair, terminated}, Parser,
+    character::complete::{line_ending, space1, u32, digit1, alphanumeric1},
+    combinator::opt,
+    multi::fold_many1,
+    sequence::{separated_pair, terminated, tuple}, IResult, bytes::complete::take_until,
 };
-use nom_supreme::{error::ErrorTree, ParserExt};
+use nom_supreme::{ParserExt, error::ErrorTree};
 
-fn process(input: Game) -> String {
+fn process(_input: ParsedData) -> String {
     todo!()
 }
 
@@ -20,25 +22,6 @@ enum HandType {
     FullHouse,
     FiveOfAKind,
 }
-
-#[derive(Debug, PartialEq)]
-struct Hand([Card; 5]);
-
-impl FromStr for Hand {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Hand(
-            s.chars()
-                .map(Card::try_from)
-                .collect::<Result<Vec<_>, _>>()?
-                .try_into()
-                .map_err(|e: Vec<_>| anyhow::anyhow!("unexpected hand length: {}", e.len()))?,
-        ))
-    }
-}
-
-type Game = Vec<(Hand, u32)>;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Card {
@@ -63,18 +46,44 @@ impl TryFrom<char> for Card {
     }
 }
 
-fn parse(input: &str) -> Game {
-    let line = separated_pair(
-        alphanumeric1::<_, ErrorTree<&str>>.map_res(Hand::from_str),
-        space1,
-        u32,
-    );
-    let mut parser = separated_list1(
-        line_ending,
-        line,
-    ).terminated(line_ending.opt());
+#[derive(Debug)]
+struct Hand([Card; 5]);
 
-    match parser.parse(input) {
+impl FromStr for Hand {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Hand(
+            s.chars()
+                .map(Card::try_from)
+                .collect::<Result<Vec<_>, _>>()?
+                .try_into()
+                .map_err(|e: Vec<_>| anyhow::anyhow!("unexpected hand length: {}", e.len()))?,
+        ))
+    }
+}
+
+#[derive(Debug, Default)]
+struct Game {
+    hands: Vec<Hand>,
+    bids: Vec<u32>,
+}
+
+type ParsedData = Game;
+
+fn parse(input: &str) -> ParsedData {
+    let line = separated_pair(alphanumeric1::<_, ErrorTree<&str>>.map_res(Hand::from_str), space1, u32);
+    let mut parser = fold_many1(
+        terminated(line, line_ending.opt()),
+        Game::default,
+        |mut game, (new_hand, new_bid)| {
+            game.hands.push(new_hand);
+            game.bids.push(new_bid);
+            game
+        },
+    );
+
+    match parser(input) {
         Ok(("", output)) => output,
         Ok(output) => panic!(
             "parsing INCOMPLETE!
