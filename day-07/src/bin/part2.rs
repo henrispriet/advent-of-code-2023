@@ -23,18 +23,31 @@ fn process(input: ParsedData) -> String {
 }
 
 fn get_hand_type(hand: &Hand) -> HandType {
+    let mut num_j = 0;
     let mut counters = hand
         .0
         .iter()
         .map(|card| card.value)
         .fold(HashMap::new(), |mut map, card| {
-            let counter = map.get(&card);
-            map.insert(card, counter.unwrap_or(&0) + 1);
+            if card == Card::try_from('J').unwrap().value {
+                num_j += 1
+            } else {
+                let counter = map.get(&card);
+                map.insert(card, counter.unwrap_or(&0) + 1);
+            }
             map
         })
         .into_values()
         .collect::<Vec<_>>();
     counters.sort_unstable();
+
+    if let Some(max) = counters.last_mut() {
+        // Js contribute to max as this gives highes hand type
+        *max += num_j;
+    } else{
+        // if no elems in counters => 5 Js => 5OK
+        return HandType::FiveOfAKind;
+    }
 
     match counters[..] {
         [5] => HandType::FiveOfAKind,
@@ -71,7 +84,7 @@ impl TryFrom<char> for Card {
         let value = match (value.to_digit(10), value) {
             (Some(n), _) if (2..=9).contains(&n) => n as u8,
             (None, 'T') => 10,
-            (None, 'J') => 11,
+            (None, 'J') => 1,
             (None, 'Q') => 12,
             (None, 'K') => 13,
             (None, 'A') => 14,
@@ -167,7 +180,7 @@ T55J5 684
 KK677 28
 KTJJT 220
 QQQJA 483";
-    let expected = "6440";
+    let expected = "5905";
 
     let parsed = parse(input);
     let output = process(parsed);
@@ -177,7 +190,7 @@ QQQJA 483";
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "251927063";
+    let expected = "255632664";
 
     let parsed = parse(input);
     let output = process(parsed);
