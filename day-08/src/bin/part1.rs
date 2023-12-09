@@ -8,8 +8,26 @@ use nom::{
 use nom_supreme::{error::ErrorTree, tag::complete::tag, ParserExt};
 use std::{collections::HashMap, str::FromStr};
 
-fn process(_input: ParsedData) -> String {
-    todo!()
+const START_NODE: Node = Node(['A'; 3]);
+const END_NODE: Node = Node(['Z'; 3]);
+
+fn process(input: ParsedData) -> String {
+    let ParsedData { instructions, map } = input;
+    let mut num_steps = 0;
+    let mut current_node = &START_NODE;
+
+    'outer: loop {
+        for instruction in instructions.iter() {
+            current_node = map.get(current_node).expect("node in map").go(instruction);
+            num_steps += 1;
+
+            if *current_node == END_NODE {
+                break 'outer;
+            }
+        }
+    }
+
+    num_steps.to_string()
 }
 
 #[derive(Debug)]
@@ -149,7 +167,6 @@ fn parse_real_input() {
     parse(real_input);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example1() {
     let input = "RL
@@ -168,7 +185,6 @@ ZZZ = (ZZZ, ZZZ)";
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example2() {
     let input = "LLR
@@ -183,11 +199,10 @@ ZZZ = (ZZZ, ZZZ)";
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with process"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "12083";
 
     let parsed = parse(input);
     let output = process(parsed);
