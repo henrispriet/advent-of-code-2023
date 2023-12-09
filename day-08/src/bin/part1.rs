@@ -1,8 +1,9 @@
 use nom::{
     character::complete::{alpha1, anychar, line_ending},
+    combinator::opt,
     multi::{fold_many1, many1},
     sequence::{delimited, separated_pair},
-    Parser, combinator::opt,
+    Parser,
 };
 use nom_supreme::{error::ErrorTree, tag::complete::tag, ParserExt};
 use std::{collections::HashMap, str::FromStr};
@@ -29,12 +30,6 @@ impl TryFrom<char> for Direction {
     }
 }
 
-#[derive(Debug)]
-struct Instructions(Vec<Direction>);
-
-#[derive(Debug, Default)]
-struct Map(HashMap<Node, Junction>);
-
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct Node([char; 3]);
 
@@ -60,12 +55,25 @@ struct Junction {
     right: Node,
 }
 
-type ParsedData = (Instructions, Map);
+impl Junction {
+    #[inline]
+    fn go(&self, direction: &Direction) -> &Node {
+        match direction {
+            Direction::Left => &self.left,
+            Direction::Right => &self.right,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ParsedData {
+    instructions: Vec<Direction>,
+    map: HashMap<Node, Junction>,
+}
 
 fn parse(input: &str) -> ParsedData {
-    let instructions = many1(anychar::<_, ErrorTree<&str>>.map_res(Direction::try_from))
-        .terminated(line_ending)
-        .map(Instructions);
+    let instructions =
+        many1(anychar::<_, ErrorTree<&str>>.map_res(Direction::try_from)).terminated(line_ending);
     let junction = separated_pair(
         alpha1.map_res(Node::from_str),
         tag(" = "),
@@ -79,13 +87,18 @@ fn parse(input: &str) -> ParsedData {
             tag(")"),
         ),
     );
-    let parse_map = fold_many1(junction.terminated(opt(line_ending)), Map::default, |mut acc, (from, (left, right))| {
-        acc.0.insert(from, Junction { left, right });
-        acc
-    });
-    let mut parser = separated_pair(instructions, line_ending, parse_map);
+    let parse_map = fold_many1(
+        junction.terminated(opt(line_ending)),
+        HashMap::new,
+        |mut acc, (from, (left, right))| {
+            acc.insert(from, Junction { left, right });
+            acc
+        },
+    );
+    let mut parser = separated_pair(instructions, line_ending, parse_map)
+        .map(|(instructions, map)| ParsedData { instructions, map });
 
-    match parser(input) {
+    match parser.parse(input) {
         Ok(("", output)) => output,
         Ok(output) => panic!(
             "parsing INCOMPLETE!
