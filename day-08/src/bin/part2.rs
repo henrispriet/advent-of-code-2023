@@ -13,26 +13,35 @@ const END_CHAR: char = 'Z';
 
 fn process(input: ParsedData) -> String {
     let ParsedData { instructions, map } = input;
-    let mut num_steps = 0;
-    let mut current_nodes = map
+    let current_nodes = map
         .keys()
         .filter(|node| node.is_start())
         .collect::<Vec<_>>();
 
-    'outer: loop {
-        for instruction in instructions.iter() {
-            for current_node in current_nodes.iter_mut() {
-                *current_node = map.get(current_node).expect("node in map").go(instruction);
-            }
-            num_steps += 1;
+    // calculate path lengths separately
+    let num_steps = current_nodes.into_iter().map(|node| {
+        let mut num_steps = 0;
+        let mut current_node = node;
 
-            if current_nodes.iter().all(|node| node.is_end()) {
-                break 'outer;
+        'outer: loop {
+            for instruction in instructions.iter() {
+                current_node = map.get(current_node).expect("node in map").go(instruction);
+                num_steps += 1;
+
+                if current_node.is_end() {
+                    break 'outer;
+                }
             }
         }
-    }
 
-    num_steps.to_string()
+        num_steps
+    });
+
+    // total is the lowest common multiple (lcm)
+    // lcm of n numbers lcm(a[..n]) = lcm(lcm(a[..n-1], a[n-1]))
+    num_steps
+        .fold(1u64, num::integer::lcm)
+        .to_string()
 }
 
 #[derive(Debug)]
@@ -248,11 +257,10 @@ XXX = (XXX, XXX)";
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "12083";
+    let expected = "13385272668829";
 
     let parsed = parse(input);
     let output = process(parsed);
