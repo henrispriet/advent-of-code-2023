@@ -1,13 +1,70 @@
 use std::collections::HashMap;
+use enum_iterator::Sequence;
 
-fn process(_input: PipeGrid) -> String {
-    todo!()
+fn process(input: PipeGrid) -> String {
+    let (mut walker1, mut walker2) = init_walkers(&input);
+    let mut distance = 1;
+
+    while walker1.position != walker2.position {
+        walker1.advance();
+        walker2.advance();
+        distance += 1;
+    }
+
+    distance.to_string()
+}
+
+#[derive(Debug)]
+struct GridWalker<'a> {
+    facing: Direction,
+    position: (usize, usize),
+    grid: &'a PipeGrid,
+}
+
+impl GridWalker<'_> {
+    fn advance(&mut self) {
+        match self.grid.grid[&self.position] {
+            Pipe(from, to) if from == -self.facing => self.move_to(to),
+            Pipe(to, from) if from == -self.facing => self.move_to(to),
+            _ => unreachable!(),
+        }
+    }
+
+    fn move_to(&mut self, to: Direction) {
+        let (x, y) = self.position;
+        self.position = match to {
+            Direction::North => (x, y.saturating_sub(1)),
+            Direction::East => (x + 1, y),
+            Direction::West => (x.saturating_sub(1), y),
+            Direction::South => (x, y + 1),
+        };
+        self.facing = to;
+    }
+}
+
+fn init_walkers(grid: &PipeGrid) -> (GridWalker, GridWalker) {
+    let mut walkers = enum_iterator::all::<Direction>().filter_map(|facing| {
+        let mut walker = GridWalker {
+            facing,
+            position: grid.start,
+            grid,
+        };
+
+        walker.move_to(walker.facing);
+
+        // check walker is looking into pipe
+        let Pipe(from1, from2) = grid.grid.get(&walker.position)?;
+        (*from1 == -walker.facing || *from2 == -walker.facing).then_some(walker)
+    });
+
+    let walker1 = walkers.next().expect("at least one walker");
+    let walker2 = walkers.next().expect("at least one walkers");
+    (walker1, walker2)
 }
 
 #[derive(Debug, Default)]
 struct PipeGrid {
     grid: HashMap<(usize, usize), Pipe>,
-    width: usize,
     start: (usize, usize),
 }
 
@@ -30,12 +87,25 @@ impl TryFrom<char> for Pipe {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Sequence)]
 enum Direction {
     North,
     East,
     West,
     South,
+}
+
+impl std::ops::Neg for Direction {
+    type Output = Direction;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Direction::North => Direction::South,
+            Direction::East => Direction::West,
+            Direction::West => Direction::East,
+            Direction::South => Direction::North,
+        }
+    }
 }
 
 fn parse(input: &str) -> PipeGrid {
@@ -47,18 +117,18 @@ fn parse(input: &str) -> PipeGrid {
     let input = input.replace('\n', "");
     let start = input.find('S').expect("input has exactly one S");
 
-    input.char_indices().fold(PipeGrid{
-        grid: HashMap::new(),
-        width,
-        start: (start / width, start % width),
-    },
+    input.char_indices().fold(
+        PipeGrid {
+            grid: HashMap::new(),
+            start: (start % width, start / width),
+        },
         |mut grid, (idx, char)| {
             if let Ok(pipe) = Pipe::try_from(char) {
-                let coords = (idx / grid.width, idx % grid.width);
+                let coords = (idx % width, idx / width);
                 grid.grid.insert(coords, pipe);
             }
             grid
-        }
+        },
     )
 }
 
@@ -96,7 +166,6 @@ fn parse_real_input() {
     parse(real_input);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example() {
     let input = ".....
@@ -111,14 +180,13 @@ fn example() {
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example2() {
-    let input = "-L|F7
-7S-7|
-L|7||
--L-J|
-L|-JF";
+    let input = "..F7.
+.FJ|.
+SJ.L7
+|F--J
+LJ...";
     let expected = "8";
 
     let parsed = parse(input);
@@ -126,11 +194,10 @@ L|-JF";
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with process"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "6860";
 
     let parsed = parse(input);
     let output = process(parsed);
