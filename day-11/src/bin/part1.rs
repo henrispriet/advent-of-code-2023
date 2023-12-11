@@ -2,8 +2,17 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-fn process(_input: GalaxyGrid) -> String {
-    todo!()
+fn process(input: GalaxyGrid) -> String {
+    // because `cartesian_product` takes each pair twice (and im too lazy to fix it)
+    // TODO: fix it
+    let double_output = input
+        .grid
+        .iter()
+        .cartesian_product(input.grid.iter())
+        .map(|(&p1, &p2)| input.distance(p1, p2))
+        .sum::<usize>();
+
+    (double_output / 2).to_string()
 }
 
 #[derive(Debug)]
@@ -13,11 +22,36 @@ struct GalaxyGrid {
     empty_columns: Vec<usize>,
 }
 
+impl GalaxyGrid {
+    fn distance(&self, p1: (usize, usize), p2: (usize, usize)) -> usize {
+        let (p1, p2) = (
+            (p1.0.min(p2.0), p1.1.min(p2.1)),
+            (p1.0.max(p2.0), p1.1.max(p2.1)),
+        );
+
+        let base_distance = (p2.1 - p1.1) + (p2.0 - p1.0);
+
+        let mut expanded_distance = base_distance;
+        for row in p1.1..p2.1 {
+            if self.empty_rows.contains(&row) {
+                expanded_distance += 1;
+            }
+        }
+        for column in p1.0..p2.0 {
+            if self.empty_columns.contains(&column) {
+                expanded_distance += 1;
+            }
+        }
+
+        expanded_distance
+    }
+}
+
 fn inverse<'a>(original: impl Iterator<Item = &'a usize>) -> Vec<usize> {
     let mut inverse = Vec::new();
     let mut prev = 0;
-    for &value in original {
-        inverse.extend_from_slice(&(prev..value).collect::<Vec<_>>());
+    for &value in original.sorted() {
+        inverse.extend_from_slice(&(prev + 1..value).collect::<Vec<_>>());
         prev = value;
     }
 
@@ -93,7 +127,6 @@ fn parse_real_input() {
     parse(real_input);
 }
 
-#[ignore = "not done with parse"]
 #[test]
 fn example() {
     let input = "...#......
@@ -106,18 +139,17 @@ fn example() {
 ..........
 .......#..
 #...#.....";
-    let expected = "";
+    let expected = "374";
 
     let parsed = parse(input);
     let output = process(parsed);
     assert_eq!(expected, output);
 }
 
-#[ignore = "not done with process"]
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "10313550";
 
     let parsed = parse(input);
     let output = process(parsed);
