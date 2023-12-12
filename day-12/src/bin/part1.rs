@@ -1,4 +1,4 @@
-use itertools::{Itertools, MultiProduct};
+use itertools::Itertools;
 use nom::{
     bytes::complete::take_until,
     character::complete::{char, line_ending, u32},
@@ -13,18 +13,37 @@ fn process(input: ParsedData) -> String {
     input
         .into_iter()
         .map(|mut row| {
+            let n_missing_broken = row.broken_counts.iter().sum::<usize>()
+                - row
+                    .row
+                    .iter()
+                    .filter(|&&s| s == SpringStatus::Broken)
+                    .count();
+
             // brute force
-            product_repeat(
-                [SpringStatus::Working, SpringStatus::Broken].into_iter(),
-                row.unknown_idx.len(),
-            )
-            .filter(|combination| {
-                for (&idx, &status) in row.unknown_idx.iter().zip(combination) {
-                    row.row[idx] = status;
-                }
-                row.is_valid()
-            })
-            .count()
+            // ripped from https://stackoverflow.com/questions/44139493/in-rust-what-is-the-proper-way-to-replicate-pythons-repeat-parameter-in-iter
+            let all_combinations =
+                std::iter::repeat([SpringStatus::Working, SpringStatus::Broken].into_iter())
+                    .take(row.unknown_idx.len())
+                    .multi_cartesian_product();
+
+            all_combinations
+                .filter(|combination| {
+                    if combination
+                        .iter()
+                        .filter(|&&s| s == SpringStatus::Broken)
+                        .count()
+                        != n_missing_broken
+                    {
+                        return false;
+                    }
+
+                    for (&idx, &status) in row.unknown_idx.iter().zip(combination) {
+                        row.row[idx] = status;
+                    }
+                    row.is_valid()
+                })
+                .count()
         })
         .sum::<usize>()
         .to_string()
@@ -85,23 +104,6 @@ impl SpringRow {
 
         counts == self.broken_counts
     }
-}
-
-/// ripped from https://stackoverflow.com/questions/44139493/in-rust-what-is-the-proper-way-to-replicate-pythons-repeat-parameter-in-iter
-/// Rust version of Python's itertools.product().
-/// It returns the cartesian product of the input iterables, and it is
-/// semantically equivalent to `repeat` nested for loops.
-///
-/// # Arguments
-///
-/// * `it` - An iterator over a cloneable data structure
-/// * `repeat` - Number of repetitions of the given iterator
-pub fn product_repeat<I>(it: I, repeat: usize) -> MultiProduct<I>
-where
-    I: Iterator + Clone,
-    I::Item: Clone,
-{
-    std::iter::repeat(it).take(repeat).multi_cartesian_product()
 }
 
 fn parse(input: &str) -> ParsedData {
