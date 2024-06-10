@@ -20,32 +20,20 @@ type ParsedData = Vec<Sequence>;
 struct Sequence(Vec<i32>);
 
 impl Sequence {
-    fn next_value(&self) -> i32 {
-        if self.0.iter().all(|e| *e == 0) {
-            0
-        } else {
-            self.0.last().expect("sequence contains at least 1 element")
-                + self.derivative().next_value()
-        }
-    }
-
     fn prev_value(&self) -> i32 {
-        if self.0.iter().all(|e| *e == 0) {
+        if self.0.iter().all(|&e| e == 0) {
             0
         } else {
-            self.0
-                .first()
-                .expect("sequence contains at least 1 element")
-                - self.derivative().prev_value()
+            self.0.first().copied().unwrap_or_default() - self.derivative().prev_value()
         }
     }
 
     fn derivative(&self) -> Sequence {
-        let mut deltas = Vec::new();
-        for i in 0..self.0.len() - 1 {
-            deltas.push(self.0[i + 1] - self.0[i]);
-        }
-        Sequence(deltas)
+        let deltas = self.0.windows(2).map(|w| {
+            let &[a, b] = w else { unreachable!() };
+            b - a
+        });
+        Sequence(deltas.collect())
     }
 }
 
