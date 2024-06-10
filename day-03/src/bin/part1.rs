@@ -23,13 +23,18 @@ fn process(input: &str) -> String {
         let line_len = line.chars().count();
         for (x, char) in line.char_indices() {
             if char == '.' {
+                // end the number when a '.' is encountered
                 new_number = true;
                 continue;
             }
 
             // char != '.' => symbol or digit
             let Some(digit) = char.to_digit(10) else {
+                // char is a symbol
                 symbols.push((x, y));
+
+                // end the number when a symbol is encountered
+                new_number = true;
                 continue;
             };
 
@@ -53,11 +58,8 @@ fn process(input: &str) -> String {
                 last_number.last_digit_x = x;
             }
 
-            // make sure
-            // .......123
-            // 456.......
-            // is considered as 2 numbers
             if x == line_len - 1 {
+                // end the number at the end of a line
                 new_number = true;
             }
         }
@@ -134,10 +136,27 @@ fn example2() {
     assert_eq!(expected, process(input));
 }
 
-#[ignore = "not done"]
+#[test]
+fn example3() {
+    let input = "467..114..
+...*......
+..35..633.
+......#...
+..........
+617*111...
+..........
+.....+.58.
+..592.....
+......755.
+...$.*....
+.664.598..";
+    let expected = "4472";
+    assert_eq!(expected, process(input));
+}
+
 #[test]
 fn real_input() {
     let input = include_str!("input.txt");
-    let expected = "";
+    let expected = "550934";
     assert_eq!(expected, process(input));
 }
